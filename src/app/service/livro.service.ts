@@ -12,13 +12,9 @@ export class LivroService {
 
   constructor(private httpClient: HttpClient) {}
 
-  searchBooks(valueBooks: string): Observable<Item[]> {
+  searchBooks(valueBooks: string): Observable<resultBook> {
     const params = new HttpParams().append('q', valueBooks);
 
-    return this.httpClient.get<resultBook>(this.booksApi, { params }).pipe(
-      tap((returnApi) => console.log(returnApi, 'tap')),
-      map((result) => result.items),
-      tap((checkResult) => console.log(checkResult, 'retorno apos map'))
-    );
+    return this.httpClient.get<resultBook>(this.booksApi, { params });
   }
 }

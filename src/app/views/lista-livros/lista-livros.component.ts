@@ -1,54 +1,60 @@
-import { VolumeInfo } from './../../interfaces/IBooks';
-import { Component, OnDestroy } from '@angular/core';
-import { Subscription } from 'rxjs';
-import { book } from 'src/app/interfaces/IBooks';
+import { Item, resultBook } from './../../interfaces/IBooks';
+import { Component } from '@angular/core';
+import {
+  EMPTY,
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  filter,
+  map,
+  of,
+  switchMap,
+  tap,
+  throwError,
+} from 'rxjs';
 import { LivroService } from 'src/app/service/livro.service';
+import { LivroVolumeInfo } from 'src/app/interfaces/livroVolumeInfo';
+import { FormControl } from '@angular/forms';
 
 @Component({
   selector: 'app-lista-livros',
   templateUrl: './lista-livros.component.html',
   styleUrls: ['./lista-livros.component.css'],
 })
-export class ListaLivrosComponent implements OnDestroy {
-  listBook: book[];
-  search: string = '';
-  subscription: Subscription;
+export class ListaLivrosComponent {
+  search = new FormControl();
 
-  book: book;
+  mensagemErro = '';
+  booksResult: resultBook;
 
   constructor(private livroService: LivroService) {}
 
-  searchBooks() {
-    this.subscription = this.livroService.searchBooks(this.search).subscribe({
-      next: (returnBooks) => {
-        this.listBook = this.returnSearchBook(returnBooks);
-      },
+  foundBooks$ = this.search.valueChanges.pipe(
+    debounceTime(300),
+    filter((valueEntered) => valueEntered.length >= 2),
+    tap(() => console.log('INITE')),
+    distinctUntilChanged(),
+    switchMap((valueEntered) => this.livroService.searchBooks(valueEntered)),
+    map((result) => (this.booksResult = result)),
+    map((result) => result.items ?? []),
+    map((returnBooks) => this.returnSearchBook(returnBooks)),
 
-      error: (error) => console.error(error, 'erro'),
-    });
-  }
-
-  returnSearchBook(items) {
-    const livros: book[] = [];
-
-    items.map((item) => {
-      livros.push(
-        (this.book = {
-          title: item.volumeInfo?.title,
-          authors: item.volumeInfo?.authors,
-          publisher: item.volumeInfo?.publisher,
-          publishedDate: item.volumeInfo?.publishedDate,
-          description: item.volumeInfo?.description,
-          previewLink: item.volumeInfo?.previewLink,
-          thumbnail: item.volumeInfo?.imageLinks?.thumbnail,
-        })
+    catchError((erro) => {
+      // this.mensagemErro = 'Ops, ocorreu um erro, recarregue a pagina!';
+      // return EMPTY;
+      console.log(erro);
+      return throwError(
+        () =>
+          new Error(
+            (this.mensagemErro = 'Ops, ocorreu um erro, recarregue a pagina!')
+          )
       );
+    })
+  );
+
+  returnSearchBook(items: Item[]): LivroVolumeInfo[] {
+    return items.map((item) => {
+      return new LivroVolumeInfo(item);
     });
-
-    return livros;
-  }
-
-  ngOnDestroy(): void {
-    this.subscription.unsubscribe();
   }
 }
